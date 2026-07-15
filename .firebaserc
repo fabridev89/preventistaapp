@@ -1,0 +1,20 @@
+{
+  "projects": {
+    "default": "preventistaapp"
+  },
+  "targets": {
+    "preventistaapp": {
+      "hosting": {
+        "admin": [
+          "preventiastas-admin",
+          "preventistaapp-admin",
+          "preventistas-admin"
+        ],
+        "app": [
+          "preventiastas"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

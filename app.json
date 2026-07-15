@@ -19,10 +19,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fabridev89.preventistaApp"
     },
     "web": {
-      "output": "static",
+      "bundler": "metro",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -38,11 +40,37 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      "expo-sqlite",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "newArchEnabled": true
+          },
+          "ios": {
+            "newArchEnabled": true
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "70f60541-535d-4809-8272-463d86ba46dc"
+      }
+    },
+    "owner": "fabridev89",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/70f60541-535d-4809-8272-463d86ba46dc"
     }
   }
 }
