@@ -105,7 +105,10 @@ export default function RutaScreen() {
         return;
       }
 
+      // 👇 MODIFICACIÓN AQUÍ: AHORA SÍ COMPLETAMOS LA COLUMNA "Codigo" 👇
+      // Usamos c.internalCode, que es donde guardamos el código del cliente.
       const dataToExport = allClients.map(c => ({
+        Codigo: c.internalCode || '', // <--- AQUÍ TOMAMOS EL CÓDIGO
         Cliente: c.businessName,
         DIRECCION: c.address || '',
         TELEFONO: c.phone || '',
@@ -176,6 +179,10 @@ export default function RutaScreen() {
         if (!businessName) continue;
 
         const newId = `CLI-${Date.now()}-${count}`;
+        
+        // 👇 LEEMOS EL CÓDIGO DEL EXCEL 👇
+        const internalCode = row.Codigo ? row.Codigo.toString().trim() : ''; 
+        
         const address = row.DIRECCION || '';
         const phone = row.TELEFONO ? row.TELEFONO.toString() : '';
         const email = row['Correo (Email)'] ? row['Correo (Email)'].toString().trim().toLowerCase() : ''; 
@@ -191,6 +198,7 @@ export default function RutaScreen() {
            const clientRef = doc(firestore, 'clients', newId);
            batch.set(clientRef, {
               id: newId,
+              internalCode: internalCode, // 👈 GUARDAMOS EL CÓDIGO EN LA NUBE
               businessId: businessId,
               businessName,
               address,
@@ -204,15 +212,15 @@ export default function RutaScreen() {
               status: 'active'
            });
         } else {
+           // 👇 GUARDAMOS EL CÓDIGO EN LA BASE DE DATOS LOCAL DEL CELULAR 👇
            await localDb.runAsync(
              `INSERT OR REPLACE INTO clients 
-             (id, businessName, address, phone, email, defaultList, visitDay, createdAt, updatedAt, syncStatus) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-             [newId, businessName, address, phone, email, defaultList, visitDay, Date.now(), Date.now(), 'PENDING']
+             (id, internalCode, businessName, address, phone, email, defaultList, visitDay, createdAt, updatedAt, syncStatus) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             [newId, internalCode, businessName, address, phone, email, defaultList, visitDay, Date.now(), Date.now(), 'PENDING']
            );
         }
 
-        // 👇 ¡LA MAGIA DE LA WHITELIST DIRECTO DESDE EL EXCEL! 👇
         if (email.includes('@') && businessId) {
           const whitelistRef = doc(firestore, 'whitelist', email);
           batch.set(whitelistRef, {
@@ -226,7 +234,6 @@ export default function RutaScreen() {
         count++;
       }
 
-      // Ejecutamos el guardado de forma global (clientes en Web + whitelist en Web y App)
       if (count > 0) {
          try {
            await batch.commit(); 

@@ -40,15 +40,25 @@ export default function PedidosScreen() {
   const loadOrders = async () => {
     setIsLoading(true);
     try {
+      // 👇 ACÁ CALCULAMOS 15 DÍAS EXACTOS HACIA ATRÁS 👇
+      const quinceDiasMs = 15 * 24 * 60 * 60 * 1000;
+      const limiteFecha = Date.now() - quinceDiasMs;
+
       if (Platform.OS === 'web') {
         if (!currentBusinessId) return;
-        const q = query(collection(firestore, 'orders'), where('businessId', '==', currentBusinessId), orderBy('createdAt', 'desc'), limit(50));
+        // Pedimos hasta 500 para asegurarnos de que traiga todo lo de los 15 días
+        const q = query(collection(firestore, 'orders'), where('businessId', '==', currentBusinessId), orderBy('createdAt', 'desc'), limit(500));
         const snapshot = await getDocs(q);
-        const webOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        let webOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Filtramos por fecha exacta de 15 días
+        webOrders = webOrders.filter((o: any) => o.createdAt >= limiteFecha);
         webOrders.sort((a: any, b: any) => b.createdAt - a.createdAt); 
+        
         setOrders(webOrders);
       } else {
-        const result = await localDb.getAllAsync<any>('SELECT * FROM orders ORDER BY createdAt DESC');
+        // En el celular filtramos directo por SQL
+        const result = await localDb.getAllAsync<any>('SELECT * FROM orders WHERE createdAt >= ? ORDER BY createdAt DESC', [limiteFecha]);
         setOrders(result);
       }
     } catch (error) {
@@ -65,7 +75,8 @@ export default function PedidosScreen() {
   useEffect(() => {
     if (!currentBusinessId || Platform.OS === 'web') return; 
 
-    const q = query(collection(firestore, 'orders'), where('businessId', '==', currentBusinessId), orderBy('createdAt', 'desc'), limit(50));
+    // También subimos un poquito el límite del escuchador por si entran muchos de golpe
+    const q = query(collection(firestore, 'orders'), where('businessId', '==', currentBusinessId), orderBy('createdAt', 'desc'), limit(100));
     
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (isFirstLoad.current) { isFirstLoad.current = false; return; }
@@ -92,11 +103,9 @@ export default function PedidosScreen() {
     loadOrders(); 
   };
 
-  // 👇 LÓGICA DEL TACHITO ACTUALIZADA: DEVUELVE STOCK SI ESTABA DESPACHADO O ENTREGADO 👇
   const handleDeleteOrder = async (order: any) => {
     const processDeletion = async () => {
       try {
-        // 1. DEVOLVER EL STOCK SI YA SE HABÍA DESCONTADO
         if (order.status === 'DESPACHADO' || order.status === 'ENTREGADO') {
           const parsedItems = safeParseItems(order.items);
           if (Platform.OS === 'web') {
@@ -120,7 +129,6 @@ export default function PedidosScreen() {
           }
         }
 
-        // 2. BORRAR EL PEDIDO DEFINITIVAMENTE
         if (Platform.OS === 'web') {
           await deleteDoc(doc(firestore, 'orders', order.id));
         } else {
@@ -347,16 +355,13 @@ export default function PedidosScreen() {
 
   const toggleExpand = (id: string) => setExpandedOrderId(prev => prev === id ? null : id);
 
-  // 👇 LÓGICA DE ESTADOS ACTUALIZADA: DESCUENTA AL DESPACHAR 👇
   const handleChangeStatus = async (order: any, newStatus: string) => {
-    // Si tocamos el mismo botón de estado que ya tiene, no hacemos nada
     if (order.status === newStatus) return;
 
     try { 
       if (Platform.OS === 'web') { 
         await setDoc(doc(firestore, 'orders', String(order.id)), { status: newStatus }, { merge: true });
         
-        // Descontamos stock SOLO si pasamos a DESPACHADO y no veníamos de ENTREGADO
         if (newStatus === 'DESPACHADO' && order.status !== 'ENTREGADO') {
           const parsedItems = safeParseItems(order.items);
           for (const item of parsedItems) {

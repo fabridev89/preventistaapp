@@ -19,6 +19,10 @@ export default function EditarClienteScreen() {
   const clientId = Array.isArray(id) ? id[0] : id;
 
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 👇 NUEVO ESTADO PARA EL CÓDIGO INTERNO 👇
+  const [internalCode, setInternalCode] = useState('');
+  
   const [businessName, setBusinessName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
@@ -39,6 +43,9 @@ export default function EditarClienteScreen() {
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const client = docSnap.data();
+            // 👇 CARGAMOS EL CÓDIGO INTERNO DESDE FIREBASE 👇
+            setInternalCode(client.internalCode || '');
+            
             setBusinessName(client.businessName || '');
             setAddress(client.address || '');
             setPhone(client.phone || '');
@@ -51,6 +58,10 @@ export default function EditarClienteScreen() {
           const result = await localDb.getAllAsync<any>('SELECT * FROM clients WHERE id = ?', [clientId]);
           if (result.length > 0) {
             const client = result[0];
+            
+            // 👇 CARGAMOS EL CÓDIGO INTERNO DESDE SQLITE 👇
+            setInternalCode(client.internalCode || '');
+            
             setBusinessName(client.businessName);
             setAddress(client.address);
             setPhone(client.phone || '');
@@ -69,6 +80,8 @@ export default function EditarClienteScreen() {
   }, [clientId]);
 
   const handleSave = async () => {
+    // 👇 Validación: Ahora el código también puede ser obligatorio si querés,
+    // pero por defecto lo dejo opcional como estaba en el Excel.
     if (!businessName || !address) {
       if (Platform.OS === 'web') window.alert("El nombre y la dirección son obligatorios.");
       else Alert.alert("Error", "El nombre y la dirección son obligatorios.");
@@ -76,8 +89,20 @@ export default function EditarClienteScreen() {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    
+    // 👇 Limpiamos y preparamos el código
+    const cleanCode = internalCode.trim();
+
     const updatedClient = {
-      businessName, address, phone, email: cleanEmail, visitDay, defaultList, updatedAt: Date.now()
+      // 👇 INCLUIMOS EL CÓDIGO INTERNO EN EL OBJETO DE ACTUALIZACIÓN 👇
+      internalCode: cleanCode,
+      businessName, 
+      address, 
+      phone, 
+      email: cleanEmail, 
+      visitDay, 
+      defaultList, 
+      updatedAt: Date.now()
     };
 
     try {
@@ -88,9 +113,9 @@ export default function EditarClienteScreen() {
         // --- GUARDADO CELULAR ---
         await localDb.runAsync(
           `UPDATE clients 
-           SET businessName = ?, address = ?, phone = ?, email = ?, visitDay = ?, defaultList = ?, updatedAt = ?, syncStatus = 'PENDING'
-           WHERE id = ?`,
-          [businessName, address, phone, cleanEmail, visitDay, defaultList, Date.now(), clientId]
+            SET internalCode = ?, businessName = ?, address = ?, phone = ?, email = ?, visitDay = ?, defaultList = ?, updatedAt = ?, syncStatus = 'PENDING'
+            WHERE id = ?`,
+          [cleanCode, businessName, address, phone, cleanEmail, visitDay, defaultList, Date.now(), clientId]
         );
         // Intentamos subirlo a Firebase rápido
         try {
@@ -142,6 +167,16 @@ export default function EditarClienteScreen() {
       </View>
 
       <View style={styles.formContainer}>
+        {/* 👇 NUEVO CAMPO DE ENTRADA PARA EL CÓDIGO DEL CLIENTE 👇 */}
+        <Text style={styles.label}>Código del Cliente</Text>
+        <TextInput 
+          style={styles.input} 
+          value={internalCode} 
+          onChangeText={setInternalCode} 
+          placeholder="Ej: 80" 
+          keyboardType="default" // O numeric si solo usás números
+        />
+
         <Text style={styles.label}>Nombre del Local *</Text>
         <TextInput style={styles.input} value={businessName} onChangeText={setBusinessName} placeholder="Ej: Kiosco Don Carlos" />
 

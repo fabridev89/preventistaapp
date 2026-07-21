@@ -1,4 +1,5 @@
 // app/editar-producto.tsx
+import * as ImageManipulator from 'expo-image-manipulator'; // 👈 IMPORTAMOS EL MANIPULADOR
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -106,6 +107,7 @@ export default function EditarProductoScreen() {
     loadInitialData();
   }, [isEditing, productId, businessId]);
 
+  // 👇 COMPRESIÓN MÁXIMA DE IMAGEN 👇
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -113,16 +115,30 @@ export default function EditarProductoScreen() {
       return;
     }
 
+    // 1. Seleccionamos la imagen de la galería
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1], 
-      quality: 0.2, // 👇 Bajamos la calidad al 20% para evitar que bloquee Firebase por peso
-      base64: true, 
+      quality: 1, // La pedimos con calidad al principio para que el manipulador trabaje bien
     });
 
-    if (!result.canceled && result.assets[0].base64) {
-      setImageUri(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    if (!result.canceled && result.assets[0].uri) {
+      try {
+        // 2. La pasamos por el compresor (achicamos a 500px y bajamos calidad al 10%)
+        const manipResult = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 500 } }], // La achicamos (si era una captura de 2000px, pasa a 500px)
+          { compress: 0.1, format: ImageManipulator.SaveFormat.JPEG, base64: true } // JPEG y baja calidad
+        );
+
+        if (manipResult.base64) {
+          setImageUri(`data:image/jpeg;base64,${manipResult.base64}`);
+        }
+      } catch (error) {
+        console.error("Error comprimiendo imagen:", error);
+        Alert.alert("Error", "No se pudo procesar la imagen seleccionada.");
+      }
     }
   };
 

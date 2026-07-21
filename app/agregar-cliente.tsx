@@ -13,6 +13,9 @@ export default function AgregarClientScreen() {
 
   const { businessId } = useAuthStore();
 
+  // 👇 NUEVO ESTADO PARA EL CÓDIGO INTERNO 👇
+  const [internalCode, setInternalCode] = useState('');
+
   const [businessName, setBusinessName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
@@ -47,9 +50,13 @@ export default function AgregarClientScreen() {
 
     const newId = `CLI-${Date.now()}`;
     const cleanEmail = email.trim().toLowerCase();
+    
+    // 👇 LIMPIAMOS EL CÓDIGO 👇
+    const cleanCode = internalCode.trim();
 
     const newClient = {
       id: newId,
+      internalCode: cleanCode, // 👈 LO AGREGAMOS AL OBJETO A GUARDAR
       businessId: businessId, 
       businessName,
       address,
@@ -66,10 +73,11 @@ export default function AgregarClientScreen() {
       if (Platform.OS === 'web') {
         await setDoc(doc(firestore, 'clients', newId), newClient);
       } else {
+        // 👇 ACTUALIZAMOS LA CONSULTA SQLITE PARA INCLUIR internalCode 👇
         await localDb.runAsync(
-          `INSERT OR REPLACE INTO clients (id, businessName, address, phone, email, visitDay, defaultList, createdAt, updatedAt, syncStatus) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [newId, businessName, address, phone, cleanEmail, selectedDay, selectedList, Date.now(), Date.now(), 'PENDING']
+          `INSERT OR REPLACE INTO clients (id, internalCode, businessName, address, phone, email, visitDay, defaultList, createdAt, updatedAt, syncStatus) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [newId, cleanCode, businessName, address, phone, cleanEmail, selectedDay, selectedList, Date.now(), Date.now(), 'PENDING']
         );
         
         try {
@@ -119,6 +127,18 @@ export default function AgregarClientScreen() {
 
       <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
         
+        {/* 👇 NUEVO CAMPO EN LA INTERFAZ PARA EL CÓDIGO 👇 */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Código del Cliente</Text>
+          <TextInput 
+            style={styles.input} 
+            value={internalCode} 
+            onChangeText={setInternalCode} 
+            placeholder="Ej. 80"
+            editable={!isSaving}
+          />
+        </View>
+
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Nombre del Local / Kiosco *</Text>
           <TextInput 
