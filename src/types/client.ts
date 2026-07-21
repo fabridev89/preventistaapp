@@ -1,7 +1,7 @@
 // src/types/client.ts
 export interface Client {
   id: string;
-  internalCode?: string; // 👈 AGREGAMOS ESTA LÍNEA ACÁ
+  internalCode?: string; 
   businessName: string;
   address: string;
   phone?: string;
@@ -10,5 +10,5 @@ export interface Client {
   defaultList: 'list1' | 'list2' | 'list3';
   createdAt: number;
   syncStatus?: 'PENDING' | 'SYNCED';
-  // ... resto de tus campos
+  balance: number; // 👈 ESTE ES EL NUEVO CAMPO (Cuenta Corriente)
 }
